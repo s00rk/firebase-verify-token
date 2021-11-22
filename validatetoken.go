@@ -6,18 +6,14 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
-
-	firebase "firebase.google.com/go"
-	"firebase.google.com/go/auth"
 )
 
 type Config struct {
 }
 
 type FirebaseJwtPlugin struct {
-	client *auth.Client
-	next   http.Handler
-	config *Config
+	next     http.Handler
+	verifier *tokenVerifier
 }
 
 func CreateConfig() *Config {
@@ -25,24 +21,14 @@ func CreateConfig() *Config {
 }
 
 func New(ctx context.Context, next http.Handler, config *Config, name string) (http.Handler, error) {
-	firebase_config := &firebase.Config{
-		ProjectID: "intsight-platform-323404",
-	}
-
-	app, err := firebase.NewApp(context.Background(), firebase_config)
+	idTokenVerifier, err := newIDTokenVerifier(context.Background(), "intsight-platform-323404")
 	if err != nil {
-		return nil, fmt.Errorf("Firebase init error %v", err)
-	}
 
-	client, err := app.Auth(context.Background())
-	if err != nil {
-		return nil, fmt.Errorf("Firebase auth error %v", err)
 	}
 
 	plugin := &FirebaseJwtPlugin{
-		client: client,
-		next:   next,
-		config: config,
+		next:     next,
+		verifier: idTokenVerifier,
 	}
 
 	return plugin, nil
@@ -53,7 +39,7 @@ func (ctl *FirebaseJwtPlugin) ServeHTTP(rw http.ResponseWriter, req *http.Reques
 
 	idToken, err := ctl.ExtractToken(req)
 	if err == nil {
-		token, err := ctl.client.VerifyIDToken(context.Background(), *idToken)
+		token, err := ctl.verifier.VerifyToken(context.Background(), *idToken)
 		if err == nil {
 			req.Header.Set("fb-userid", token.UID)
 			for key, value := range token.Claims {
@@ -80,6 +66,7 @@ func (ctl *FirebaseJwtPlugin) ExtractToken(req *http.Request) (*string, error) {
 		return nil, errors.New("Token not found")
 	}
 
-	auth := strings.Replace(authHeader[0], "Bearer ", "", -1)
-	return &auth, nil
+	token := strings.Replace(authHeader[0], "Bearer ", "", -1)
+
+	return &token, nil
 }
