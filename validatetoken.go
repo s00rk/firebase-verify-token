@@ -12,7 +12,6 @@ import (
 )
 
 type Config struct {
-	ProjectID string
 }
 
 type FirebaseJwtPlugin struct {
@@ -26,12 +25,8 @@ func CreateConfig() *Config {
 }
 
 func New(ctx context.Context, next http.Handler, config *Config, name string) (http.Handler, error) {
-	if len(config.ProjectID) == 0 {
-		return nil, fmt.Errorf("Firebase configuration incorrect, missing projectid")
-	}
-
 	firebase_config := &firebase.Config{
-		ProjectID: config.ProjectID,
+		ProjectID: "intsight-platform-323404",
 	}
 
 	app, err := firebase.NewApp(context.Background(), firebase_config)
