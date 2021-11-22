@@ -214,7 +214,12 @@ func (c *Client) CreateHMACKey(ctx context.Context, projectID, serviceAccountEma
 
 	setClientHeader(call.Header())
 
-	hkPb, err := call.Context(ctx).Do()
+	var hkPb *raw.HmacKey
+	var err error
+	err = runWithRetry(ctx, func() error {
+		hkPb, err = call.Context(ctx).Do()
+		return err
+	})
 	if err != nil {
 		return nil, err
 	}

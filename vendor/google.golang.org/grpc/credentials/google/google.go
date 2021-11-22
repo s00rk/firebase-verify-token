@@ -99,15 +99,6 @@ func (c *creds) PerRPCCredentials() credentials.PerRPCCredentials {
 	return c.perRPCCreds
 }
 
-var (
-	newTLS = func() credentials.TransportCredentials {
-		return credentials.NewTLS(nil)
-	}
-	newALTS = func() credentials.TransportCredentials {
-		return alts.NewClientCreds(alts.DefaultClientOptions())
-	}
-)
-
 // NewWithMode should make a copy of Bundle, and switch mode. Modifying the
 // existing Bundle may cause races.
 func (c *creds) NewWithMode(mode string) (credentials.Bundle, error) {
@@ -119,11 +110,11 @@ func (c *creds) NewWithMode(mode string) (credentials.Bundle, error) {
 	// Create transport credentials.
 	switch mode {
 	case internal.CredsBundleModeFallback:
-		newCreds.transportCreds = newClusterTransportCreds(newTLS(), newALTS())
+		newCreds.transportCreds = credentials.NewTLS(nil)
 	case internal.CredsBundleModeBackendFromBalancer, internal.CredsBundleModeBalancer:
 		// Only the clients can use google default credentials, so we only need
 		// to create new ALTS client creds here.
-		newCreds.transportCreds = newALTS()
+		newCreds.transportCreds = alts.NewClientCreds(alts.DefaultClientOptions())
 	default:
 		return nil, fmt.Errorf("unsupported mode: %v", mode)
 	}

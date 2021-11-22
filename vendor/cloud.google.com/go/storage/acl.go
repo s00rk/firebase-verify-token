@@ -22,7 +22,6 @@ import (
 	"cloud.google.com/go/internal/trace"
 	"google.golang.org/api/googleapi"
 	raw "google.golang.org/api/storage/v1"
-	storagepb "google.golang.org/genproto/googleapis/storage/v2"
 )
 
 // ACLRole is the level of access to grant.
@@ -133,9 +132,11 @@ func (a *ACLHandle) bucketDefaultList(ctx context.Context) ([]ACLRule, error) {
 }
 
 func (a *ACLHandle) bucketDefaultDelete(ctx context.Context, entity ACLEntity) error {
-	req := a.c.raw.DefaultObjectAccessControls.Delete(a.bucket, string(entity))
-	a.configureCall(ctx, req)
-	return req.Do()
+	return runWithRetry(ctx, func() error {
+		req := a.c.raw.DefaultObjectAccessControls.Delete(a.bucket, string(entity))
+		a.configureCall(ctx, req)
+		return req.Do()
+	})
 }
 
 func (a *ACLHandle) bucketList(ctx context.Context) ([]ACLRule, error) {
@@ -159,16 +160,24 @@ func (a *ACLHandle) bucketSet(ctx context.Context, entity ACLEntity, role ACLRol
 		Entity: string(entity),
 		Role:   string(role),
 	}
-	req := a.c.raw.BucketAccessControls.Update(a.bucket, string(entity), acl)
-	a.configureCall(ctx, req)
-	_, err := req.Do()
-	return err
+	err := runWithRetry(ctx, func() error {
+		req := a.c.raw.BucketAccessControls.Update(a.bucket, string(entity), acl)
+		a.configureCall(ctx, req)
+		_, err := req.Do()
+		return err
+	})
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (a *ACLHandle) bucketDelete(ctx context.Context, entity ACLEntity) error {
-	req := a.c.raw.BucketAccessControls.Delete(a.bucket, string(entity))
-	a.configureCall(ctx, req)
-	return req.Do()
+	return runWithRetry(ctx, func() error {
+		req := a.c.raw.BucketAccessControls.Delete(a.bucket, string(entity))
+		a.configureCall(ctx, req)
+		return req.Do()
+	})
 }
 
 func (a *ACLHandle) objectList(ctx context.Context) ([]ACLRule, error) {
@@ -204,14 +213,18 @@ func (a *ACLHandle) objectSet(ctx context.Context, entity ACLEntity, role ACLRol
 		req = a.c.raw.ObjectAccessControls.Update(a.bucket, a.object, string(entity), acl)
 	}
 	a.configureCall(ctx, req)
-	_, err := req.Do()
-	return err
+	return runWithRetry(ctx, func() error {
+		_, err := req.Do()
+		return err
+	})
 }
 
 func (a *ACLHandle) objectDelete(ctx context.Context, entity ACLEntity) error {
-	req := a.c.raw.ObjectAccessControls.Delete(a.bucket, a.object, string(entity))
-	a.configureCall(ctx, req)
-	return req.Do()
+	return runWithRetry(ctx, func() error {
+		req := a.c.raw.ObjectAccessControls.Delete(a.bucket, a.object, string(entity))
+		a.configureCall(ctx, req)
+		return req.Do()
+	})
 }
 
 func (a *ACLHandle) configureCall(ctx context.Context, call interface{ Header() http.Header }) {
@@ -227,14 +240,6 @@ func toObjectACLRules(items []*raw.ObjectAccessControl) []ACLRule {
 	var rs []ACLRule
 	for _, item := range items {
 		rs = append(rs, toObjectACLRule(item))
-	}
-	return rs
-}
-
-func fromProtoToObjectACLRules(items []*storagepb.ObjectAccessControl) []ACLRule {
-	var rs []ACLRule
-	for _, item := range items {
-		rs = append(rs, fromProtoToObjectACLRule(item))
 	}
 	return rs
 }
@@ -258,17 +263,6 @@ func toObjectACLRule(a *raw.ObjectAccessControl) ACLRule {
 	}
 }
 
-func fromProtoToObjectACLRule(a *storagepb.ObjectAccessControl) ACLRule {
-	return ACLRule{
-		Entity:      ACLEntity(a.GetEntity()),
-		EntityID:    a.GetEntityId(),
-		Role:        ACLRole(a.GetRole()),
-		Domain:      a.GetDomain(),
-		Email:       a.GetEmail(),
-		ProjectTeam: fromProtoToObjectProjectTeam(a.GetProjectTeam()),
-	}
-}
-
 func toBucketACLRule(a *raw.BucketAccessControl) ACLRule {
 	return ACLRule{
 		Entity:      ACLEntity(a.Entity),
@@ -287,17 +281,6 @@ func toRawObjectACL(rules []ACLRule) []*raw.ObjectAccessControl {
 	r := make([]*raw.ObjectAccessControl, 0, len(rules))
 	for _, rule := range rules {
 		r = append(r, rule.toRawObjectAccessControl("")) // bucket name unnecessary
-	}
-	return r
-}
-
-func toProtoObjectACL(rules []ACLRule) []*storagepb.ObjectAccessControl {
-	if len(rules) == 0 {
-		return nil
-	}
-	r := make([]*storagepb.ObjectAccessControl, 0, len(rules))
-	for _, rule := range rules {
-		r = append(r, rule.toProtoObjectAccessControl("")) // bucket name unnecessary
 	}
 	return r
 }
@@ -331,14 +314,6 @@ func (r ACLRule) toRawObjectAccessControl(bucket string) *raw.ObjectAccessContro
 	}
 }
 
-func (r ACLRule) toProtoObjectAccessControl(bucket string) *storagepb.ObjectAccessControl {
-	return &storagepb.ObjectAccessControl{
-		Entity: string(r.Entity),
-		Role:   string(r.Role),
-		// The other fields are not settable.
-	}
-}
-
 func toBucketProjectTeam(p *raw.BucketAccessControlProjectTeam) *ProjectTeam {
 	if p == nil {
 		return nil
@@ -356,15 +331,5 @@ func toObjectProjectTeam(p *raw.ObjectAccessControlProjectTeam) *ProjectTeam {
 	return &ProjectTeam{
 		ProjectNumber: p.ProjectNumber,
 		Team:          p.Team,
-	}
-}
-
-func fromProtoToObjectProjectTeam(p *storagepb.ProjectTeam) *ProjectTeam {
-	if p == nil {
-		return nil
-	}
-	return &ProjectTeam{
-		ProjectNumber: p.GetProjectNumber(),
-		Team:          p.GetTeam(),
 	}
 }

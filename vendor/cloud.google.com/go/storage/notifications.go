@@ -184,7 +184,5 @@ func (b *BucketHandle) DeleteNotification(ctx context.Context, id string) (err e
 	if b.userProject != "" {
 		call.UserProject(b.userProject)
 	}
-	return runWithRetry(ctx, func() error {
-		return call.Context(ctx).Do()
-	})
+	return call.Context(ctx).Do()
 }

@@ -5,7 +5,6 @@
 package externalaccount
 
 import (
-	"bytes"
 	"context"
 	"crypto/hmac"
 	"crypto/sha256"
@@ -13,6 +12,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"golang.org/x/oauth2"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -22,8 +22,6 @@ import (
 	"sort"
 	"strings"
 	"time"
-
-	"golang.org/x/oauth2"
 )
 
 type awsSecurityCredentials struct {
@@ -129,7 +127,7 @@ func canonicalHeaders(req *http.Request) (string, string) {
 	}
 	sort.Strings(headers)
 
-	var fullHeaders bytes.Buffer
+	var fullHeaders strings.Builder
 	for _, header := range headers {
 		headerValue := strings.Join(lowerCaseHeaders[header], ",")
 		fullHeaders.WriteString(header)
@@ -342,9 +340,6 @@ func (cs awsCredentialSource) subjectToken() (string, error) {
 
 func (cs *awsCredentialSource) getRegion() (string, error) {
 	if envAwsRegion := getenv("AWS_REGION"); envAwsRegion != "" {
-		return envAwsRegion, nil
-	}
-	if envAwsRegion := getenv("AWS_DEFAULT_REGION"); envAwsRegion != "" {
 		return envAwsRegion, nil
 	}
 

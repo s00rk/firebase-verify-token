@@ -37,7 +37,6 @@ import (
 	"google.golang.org/grpc/credentials/alts/internal/handshaker/service"
 	altspb "google.golang.org/grpc/credentials/alts/internal/proto/grpc_gcp"
 	"google.golang.org/grpc/grpclog"
-	"google.golang.org/grpc/internal/googlecloud"
 )
 
 const (
@@ -55,7 +54,6 @@ const (
 )
 
 var (
-	vmOnGCP       bool
 	once          sync.Once
 	maxRPCVersion = &altspb.RpcProtocolVersions_Version{
 		Major: protocolVersionMaxMajor,
@@ -151,8 +149,9 @@ func NewServerCreds(opts *ServerOptions) credentials.TransportCredentials {
 
 func newALTS(side core.Side, accounts []string, hsAddress string) credentials.TransportCredentials {
 	once.Do(func() {
-		vmOnGCP = googlecloud.OnGCE()
+		vmOnGCP = isRunningOnGCP()
 	})
+
 	if hsAddress == "" {
 		hsAddress = hypervisorHandshakerServiceAddress
 	}
