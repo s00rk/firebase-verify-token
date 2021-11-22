@@ -9,7 +9,7 @@ import (
 )
 
 type Config struct {
-	ProjectID string `json:"project_id"`
+	ProjectID string `json:"ProjectID"`
 }
 
 type FirebaseJwtPlugin struct {
@@ -23,7 +23,7 @@ func CreateConfig() *Config {
 
 func New(ctx context.Context, next http.Handler, config *Config, name string) (http.Handler, error) {
 	if len(config.ProjectID) == 0 || strings.TrimSpace(config.ProjectID) == "" {
-		return nil, fmt.Errorf("configuration incorrect, missing project_id")
+		return nil, fmt.Errorf("configuration incorrect, missing ProjectID")
 	}
 
 	idTokenVerifier, err := newIDTokenVerifier(context.Background(), config.ProjectID)
