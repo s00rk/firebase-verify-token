@@ -1,4 +1,4 @@
-package firebaseverifytoken
+package firebase_verify_token
 
 import (
 	"bytes"

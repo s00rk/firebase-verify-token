@@ -1,4 +1,4 @@
-package firebaseverifytoken
+package firebase_verify_token
 
 type FirebaseInfo struct {
 	SignInProvider string                 `json:"sign_in_provider"`

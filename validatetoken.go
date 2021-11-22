@@ -1,4 +1,4 @@
-package firebaseverifytoken
+package firebase_verify_token
 
 import (
 	"context"
@@ -8,8 +8,7 @@ import (
 	"strings"
 )
 
-type Config struct {
-}
+type Config struct{}
 
 type FirebaseJwtPlugin struct {
 	next     http.Handler
