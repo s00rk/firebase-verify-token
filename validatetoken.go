@@ -27,7 +27,7 @@ func CreateConfig() *Config {
 
 func New(ctx context.Context, next http.Handler, config *Config, name string) (http.Handler, error) {
 	if len(config.ProjectID) == 0 {
-		return nil, fmt.Errorf("Firebase configuration incorrect, missing project_id")
+		return nil, fmt.Errorf("Firebase configuration incorrect, missing projectid")
 	}
 
 	firebase_config := &firebase.Config{
@@ -60,7 +60,7 @@ func (ctl *FirebaseJwtPlugin) ServeHTTP(rw http.ResponseWriter, req *http.Reques
 	if err == nil {
 		token, err := ctl.client.VerifyIDToken(context.Background(), *idToken)
 		if err == nil {
-			req.Header.Set("user-id", token.UID)
+			req.Header.Set("fb-userid", token.UID)
 			for key, value := range token.Claims {
 				keyName := fmt.Sprintf("fbclaim-%s", key)
 				newValue := fmt.Sprintf("%v", value)
