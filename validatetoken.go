@@ -8,7 +8,9 @@ import (
 	"strings"
 )
 
-type Config struct{}
+type Config struct {
+	ProjectID string `json:"project_id"`
+}
 
 type FirebaseJwtPlugin struct {
 	next     http.Handler
@@ -20,9 +22,13 @@ func CreateConfig() *Config {
 }
 
 func New(ctx context.Context, next http.Handler, config *Config, name string) (http.Handler, error) {
-	idTokenVerifier, err := newIDTokenVerifier(context.Background(), "intsight-platform-323404")
-	if err != nil {
+	if len(config.ProjectID) == 0 || strings.TrimSpace(config.ProjectID) == "" {
+		return nil, fmt.Errorf("configuration incorrect, missing project_id")
+	}
 
+	idTokenVerifier, err := newIDTokenVerifier(context.Background(), config.ProjectID)
+	if err != nil {
+		return nil, err
 	}
 
 	plugin := &FirebaseJwtPlugin{
@@ -54,14 +60,13 @@ func (ctl *FirebaseJwtPlugin) ServeHTTP(rw http.ResponseWriter, req *http.Reques
 	if tokenValid {
 		ctl.next.ServeHTTP(rw, req)
 	} else {
-		http.Error(rw, "Not allowed", http.StatusForbidden)
+		http.Error(rw, "Unauthorized", http.StatusUnauthorized)
 	}
 }
 
 func (ctl *FirebaseJwtPlugin) ExtractToken(req *http.Request) (*string, error) {
 	authHeader, ok := req.Header["Authorization"]
 	if !ok {
-		fmt.Println("No header token")
 		return nil, errors.New("Token not found")
 	}
 
